@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paper Reader
 
-## Getting Started
+A local web app that helps researchers read arxiv papers **without losing their place**. It loads the LaTeXML **HTML** rendition of an arxiv paper and makes embedded links and formulas interactive:
 
-First, run the development server:
+- **Citations** open in a parallel panel instead of jumping you away. If the cited paper is on arxiv, its full text is rendered inline; otherwise you get a metadata card (title, abstract, link) resolved via Semantic Scholar.
+- **Section / figure / equation / table references** are cloned into a parallel panel, so the main reading column never scrolls away from where you were.
+- **Formula terms** are interactive: click a symbol (or select part of a formula) to get a concise, paper-grounded definition from Claude. Definitions are cached.
+
+Parallel panels are tabbed and resizable.
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router, TypeScript) — full-stack, runs locally
+- **SQLite** via [`better-sqlite3`](https://github.com/WiseLibs/better-sqlite3) — a single local file, no ORM or migration step
+- Tailwind CSS + [`react-resizable-panels`](https://github.com/bvaughn/react-resizable-panels)
+- [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) for Claude
+- [`linkedom`](https://github.com/WebReflection/linkedom) for server-side HTML parsing
+- Native browser **MathML** rendering (no MathJax needed)
+- **[bun](https://bun.sh)** as the package manager and runtime (not npm)
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install        # builds the better-sqlite3 native binary
+bun run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The database is a single SQLite file created automatically on first run at `data/reader.db` (override with the `DATABASE_PATH` env var). The schema is initialized in code, so there is no migration step.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Then open the app, paste an arxiv link or id (e.g. `1706.03762` or `https://arxiv.org/abs/2310.06825`), and start reading.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Claude API key
 
-## Learn More
+Formula-term definitions require a Claude API key. Click **Add API key** on the home screen and paste your key — it is cached in the local SQLite database (`Setting` table). You can also set `ANTHROPIC_API_KEY` in `.env`, and override the model with `CLAUDE_MODEL` (defaults to `claude-3-5-sonnet-latest`).
 
-To learn more about Next.js, take a look at the following resources:
+## Data model
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The SQLite schema (see `src/lib/db.ts`) has four tables: `Paper`, `Reference`, `TermDefinition`, and `Setting`. All data — parsed papers, resolved references, and cached term definitions — lives in the local `data/reader.db` file.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How it works
 
-## Deploy on Vercel
+1. **Ingest** (`src/lib/ingest.ts`): normalize the arxiv id, fetch `https://arxiv.org/html/{id}` (falling back to ar5iv for older papers), and persist.
+2. **Parse** (`src/lib/parse.ts`): with `linkedom`, extract metadata + bibliography, classify every internal link by tagging `data-link-kind` / `data-target`, rewrite asset URLs to absolute, and sanitize while keeping MathML.
+3. **Read** (`src/components/PaperHtml.tsx`): a delegated click handler intercepts the tagged links to open parallel panels, and a formula handler highlights the selected token and shows a `TermPopover` that calls `/api/terms/define`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Start the dev server |
+| `bun run build` | Production build |
+| `bun run start` | Start the production server |
+
+## Notes
+
+- Only arxiv papers with an HTML rendition are supported (arxiv native HTML for recent submissions, ar5iv for the historical corpus).
+- Papers, references, and term definitions are cached in SQLite so re-opening is instant.

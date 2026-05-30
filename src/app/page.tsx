@@ -1,65 +1,149 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ApiKeyModal } from "@/components/ApiKeyModal";
+
+interface RecentPaper {
+  id: string;
+  arxivId: string;
+  title: string;
+  authors: string | null;
+  createdAt: string;
+}
 
 export default function Home() {
+  const router = useRouter();
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [recent, setRecent] = useState<RecentPaper[]>([]);
+  const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
+  const [model, setModel] = useState<string>("");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const loadStatus = () => {
+    fetch("/api/settings/api-key")
+      .then((r) => r.json())
+      .then((d) => {
+        setKeyConfigured(Boolean(d.configured));
+        setModel(d.model || "");
+      })
+      .catch(() => setKeyConfigured(false));
+  };
+
+  useEffect(() => {
+    loadStatus();
+    fetch("/api/papers")
+      .then((r) => r.json())
+      .then((d) => setRecent(d.papers || []))
+      .catch(() => {});
+  }, []);
+
+  const open = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!input.trim() || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/papers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: input.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to open paper.");
+        return;
+      }
+      router.push(`/read/${data.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Network error.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col px-6 py-16">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+          Paper Reader
+        </h1>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="flex items-center gap-2 rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-100"
+        >
+          <span
+            className={`h-2 w-2 rounded-full ${
+              keyConfigured ? "bg-green-500" : "bg-amber-500"
+            }`}
+          />
+          {keyConfigured ? "API key set" : "Add API key"}
+        </button>
+      </div>
+
+      <p className="mt-2 text-sm text-neutral-500">
+        Read arxiv papers without losing your place. Citations, sections, and
+        equations open in parallel; click formula terms for definitions.
+      </p>
+
+      <form onSubmit={open} className="mt-8">
+        <div className="flex gap-2">
+          <input
+            autoFocus
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="arxiv link or id, e.g. 1706.03762 or arxiv.org/abs/2310.06825"
+            className="flex-1 rounded-lg border border-neutral-300 px-4 py-3 text-sm outline-none focus:border-blue-500"
+          />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+          >
+            {loading ? "Loading…" : "Open"}
+          </button>
+        </div>
+        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+        {loading && (
+          <p className="mt-2 text-xs text-neutral-400">
+            Fetching and parsing the HTML version… first load can take a few
+            seconds.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        )}
+      </form>
+
+      {recent.length > 0 && (
+        <section className="mt-12">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+            Recent
+          </h2>
+          <ul className="divide-y divide-neutral-100">
+            {recent.map((p) => (
+              <li key={p.id}>
+                <button
+                  onClick={() => router.push(`/read/${p.id}`)}
+                  className="block w-full py-3 text-left hover:bg-neutral-50"
+                >
+                  <p className="text-sm font-medium text-neutral-900">{p.title}</p>
+                  <p className="truncate text-xs text-neutral-500">
+                    arXiv:{p.arxivId}
+                    {p.authors ? ` · ${p.authors}` : ""}
+                  </p>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <ApiKeyModal
+        open={modalOpen}
+        currentModel={model}
+        onClose={() => setModalOpen(false)}
+        onSaved={loadStatus}
+      />
+    </main>
   );
 }
