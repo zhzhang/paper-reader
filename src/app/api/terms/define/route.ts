@@ -53,6 +53,7 @@ export async function POST(req: Request) {
     "If the paper context defines it, base your answer on that and set fromPaper=true. " +
     "Otherwise use your general knowledge of the field and set fromPaper=false. " +
     "Keep the explanation to 1-3 sentences, plain and precise. " +
+    "Wrap any mathematical symbols or expressions in LaTeX math delimiters: $...$ for inline math. " +
     'Respond ONLY with strict JSON: {"definition": string, "fromPaper": boolean}.';
 
   const user = [

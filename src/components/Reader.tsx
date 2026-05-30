@@ -150,7 +150,7 @@ export function Reader({ paper }: { paper: PaperFull }) {
       </header>
 
       <Group orientation="horizontal" className="flex-1">
-        <Panel defaultSize={hasPanels ? 58 : 100} minSize={30}>
+        <Panel defaultSize={hasPanels ? 50 : 100} minSize={25}>
           <div className="h-full overflow-y-auto bg-white">
             <div className="mx-auto max-w-3xl px-6 py-8">
               <PaperHtml
@@ -167,7 +167,7 @@ export function Reader({ paper }: { paper: PaperFull }) {
           <Separator className="w-1.5 cursor-col-resize bg-neutral-200 transition-colors hover:bg-blue-400" />
         )}
         {hasPanels && (
-            <Panel defaultSize={42} minSize={25}>
+            <Panel defaultSize={50} minSize={25}>
               <div className="flex h-full flex-col bg-white">
                 <div className="flex items-stretch gap-0 overflow-x-auto border-b border-neutral-200 bg-neutral-50">
                   {panels.map((p) => (

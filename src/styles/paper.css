@@ -149,10 +149,12 @@
   font-size: 1.02em;
 }
 
+/* Display (block) equations render larger for readability. */
 .paper-root math[display="block"] {
   display: block;
   margin: 0.5rem auto;
   overflow-x: auto;
+  font-size: 1.35em;
 }
 
 /* Links: subtle by default, with affordances for the interactive kinds. */

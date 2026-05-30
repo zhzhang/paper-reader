@@ -35,3 +35,26 @@ export async function askClaude(opts: {
     .join("")
     .trim();
 }
+
+export interface ClaudeModel {
+  id: string;
+  displayName: string;
+}
+
+/**
+ * List the models available to the given (or cached) API key, via the
+ * Anthropic Models API.
+ */
+export async function listClaudeModels(apiKey?: string): Promise<ClaudeModel[]> {
+  const key = apiKey?.trim() || getClaudeKey();
+  if (!key) throw new MissingKeyError();
+
+  const client = new Anthropic({ apiKey: key });
+  const models: ClaudeModel[] = [];
+
+  for await (const model of client.models.list({ limit: 100 })) {
+    models.push({ id: model.id, displayName: model.display_name ?? model.id });
+  }
+
+  return models;
+}

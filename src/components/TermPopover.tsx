@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { KatexMath, RichMath } from "@/components/Katex";
 
 export interface TermState {
   x: number;
@@ -95,9 +96,9 @@ export function TermPopover({ state, onClose }: Props) {
       className="z-50 rounded-lg border border-neutral-300 bg-white shadow-xl text-sm text-neutral-800"
     >
       <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-3 py-2">
-        <code className="truncate font-mono text-xs text-neutral-600">
-          {state.termTex}
-        </code>
+        <span className="truncate text-base text-neutral-800">
+          <KatexMath tex={state.termTex} />
+        </span>
         <button
           onClick={onClose}
           className="text-neutral-400 hover:text-neutral-700"
@@ -110,7 +111,9 @@ export function TermPopover({ state, onClose }: Props) {
         {loading && <p className="text-neutral-500">Looking up term…</p>}
         {!loading && result && (
           <>
-            <p className="leading-snug">{result.definition}</p>
+            <p className="leading-snug">
+              <RichMath text={result.definition} />
+            </p>
             <span
               className={`mt-2 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
                 result.source === "paper"
