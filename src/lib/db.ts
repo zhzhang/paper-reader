@@ -14,10 +14,13 @@ export interface PaperRow {
   title: string;
   authors: string | null;
   abstract: string | null;
-  html: string;
+  pdf: Buffer;
+  numPages: number;
   sourceUrl: string;
   createdAt: number;
 }
+
+export type PaperMetaRow = Omit<PaperRow, "pdf">;
 
 export interface ReferenceRow {
   id: string;
@@ -76,7 +79,8 @@ function initSchema(db: Database.Database): void {
       title TEXT NOT NULL,
       authors TEXT,
       abstract TEXT,
-      html TEXT NOT NULL,
+      pdf BLOB NOT NULL,
+      numPages INTEGER NOT NULL,
       sourceUrl TEXT NOT NULL,
       createdAt INTEGER NOT NULL
     );
@@ -134,6 +138,15 @@ export function getPaperById(id: string): PaperRow | undefined {
     | undefined;
 }
 
+export function getPaperMetaById(id: string): PaperMetaRow | undefined {
+  return db
+    .prepare(
+      `SELECT id, arxivId, version, title, authors, abstract, numPages, sourceUrl, createdAt
+       FROM Paper WHERE id = ?`,
+    )
+    .get(id) as PaperMetaRow | undefined;
+}
+
 export function listRecentPapers(limit = 30): Pick<
   PaperRow,
   "id" | "arxivId" | "title" | "authors" | "createdAt"
@@ -156,8 +169,8 @@ export function getReferencesForPaper(paperId: string): ReferenceRow[] {
 
 const insertPaperStmt = () =>
   db.prepare(
-    `INSERT INTO Paper (id, arxivId, version, title, authors, abstract, html, sourceUrl, createdAt)
-     VALUES (@id, @arxivId, @version, @title, @authors, @abstract, @html, @sourceUrl, @createdAt)`,
+    `INSERT INTO Paper (id, arxivId, version, title, authors, abstract, pdf, numPages, sourceUrl, createdAt)
+     VALUES (@id, @arxivId, @version, @title, @authors, @abstract, @pdf, @numPages, @sourceUrl, @createdAt)`,
   );
 
 const insertReferenceStmt = () =>

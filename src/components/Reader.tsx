@@ -2,24 +2,30 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { Group, Panel, Separator } from "react-resizable-panels";
-import { PaperHtml, type OpenPanelRequest } from "@/components/PaperHtml";
+import type { OpenPagePanelRequest } from "@/components/PdfViewer";
 import type { PaperFull, ReferenceItem, ResolvedReference } from "@/lib/types";
+
+const PdfViewer = dynamic(
+  () => import("@/components/PdfViewer").then((m) => m.PdfViewer),
+  { ssr: false },
+);
 
 interface OpenedPanel {
   key: string;
   kind: string;
   title: string;
-  // section-like content
-  html?: string;
   ownerPaperId: string;
-  // citation
   bibKey?: string;
   resolving?: boolean;
   reference?: ResolvedReference;
   error?: string;
-  citedHtml?: string;
   citedPaperId?: string;
+  citedNumPages?: number;
+  fileUrl?: string;
+  pageNumber?: number;
+  destY?: number;
 }
 
 let panelCounter = 0;
@@ -28,7 +34,6 @@ export function Reader({ paper }: { paper: PaperFull }) {
   const [panels, setPanels] = useState<OpenedPanel[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
-  // bibKey -> reference, per owning paper.
   const refMaps = useRef<Record<string, Record<string, ReferenceItem>>>({});
   if (!refMaps.current[paper.id]) {
     refMaps.current[paper.id] = Object.fromEntries(
@@ -50,11 +55,19 @@ export function Reader({ paper }: { paper: PaperFull }) {
     });
   }, []);
 
-  const openPanel = useCallback((req: OpenPanelRequest) => {
+  const openPagePanel = useCallback((req: OpenPagePanelRequest) => {
     const key = `p${++panelCounter}`;
     setPanels((prev) => [
       ...prev,
-      { key, kind: req.kind, title: req.title, html: req.html, ownerPaperId: req.ownerPaperId },
+      {
+        key,
+        kind: "page",
+        title: `${req.kindLabel} p.${req.pageNumber}`,
+        ownerPaperId: req.ownerPaperId,
+        fileUrl: req.fileUrl,
+        pageNumber: req.pageNumber,
+        destY: req.destY,
+      },
     ]);
     setActiveKey(key);
   }, []);
@@ -105,8 +118,8 @@ export function Reader({ paper }: { paper: PaperFull }) {
             refMaps.current[cited.id] = Object.fromEntries(
               cited.references.map((r) => [r.bibKey, r]),
             );
-            patch.citedHtml = cited.html;
             patch.citedPaperId = cited.id;
+            patch.citedNumPages = cited.numPages;
           }
         }
         updatePanel(key, patch);
@@ -125,6 +138,8 @@ export function Reader({ paper }: { paper: PaperFull }) {
     () => panels.find((p) => p.key === activeKey) ?? null,
     [panels, activeKey],
   );
+
+  const mainPdfUrl = `/api/papers/${paper.id}/pdf`;
 
   return (
     <div className="flex h-screen flex-col bg-neutral-100">
@@ -152,14 +167,13 @@ export function Reader({ paper }: { paper: PaperFull }) {
       <Group orientation="horizontal" className="flex-1">
         <Panel defaultSize={hasPanels ? 50 : 100} minSize={25}>
           <div className="h-full overflow-y-auto bg-white">
-            <div className="mx-auto max-w-3xl px-6 py-8">
-              <PaperHtml
-                html={paper.html}
-                ownerPaperId={paper.id}
-                onOpenCitation={openCitation}
-                onOpenPanel={openPanel}
-              />
-            </div>
+            <PdfViewer
+              fileUrl={mainPdfUrl}
+              ownerPaperId={paper.id}
+              numPages={paper.numPages}
+              onOpenCitation={openCitation}
+              onOpenPagePanel={openPagePanel}
+            />
           </div>
         </Panel>
 
@@ -167,48 +181,48 @@ export function Reader({ paper }: { paper: PaperFull }) {
           <Separator className="w-1.5 cursor-col-resize bg-neutral-200 transition-colors hover:bg-blue-400" />
         )}
         {hasPanels && (
-            <Panel defaultSize={50} minSize={25}>
-              <div className="flex h-full flex-col bg-white">
-                <div className="flex items-stretch gap-0 overflow-x-auto border-b border-neutral-200 bg-neutral-50">
-                  {panels.map((p) => (
-                    <button
-                      key={p.key}
-                      onClick={() => setActiveKey(p.key)}
-                      className={`group flex max-w-[180px] shrink-0 items-center gap-1.5 border-r border-neutral-200 px-3 py-2 text-xs ${
-                        p.key === activeKey
-                          ? "bg-white font-medium text-neutral-900"
-                          : "text-neutral-500 hover:bg-white/60"
-                      }`}
-                      title={p.title}
+          <Panel defaultSize={50} minSize={25}>
+            <div className="flex h-full flex-col bg-white">
+              <div className="flex items-stretch gap-0 overflow-x-auto border-b border-neutral-200 bg-neutral-50">
+                {panels.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => setActiveKey(p.key)}
+                    className={`group flex max-w-[180px] shrink-0 items-center gap-1.5 border-r border-neutral-200 px-3 py-2 text-xs ${
+                      p.key === activeKey
+                        ? "bg-white font-medium text-neutral-900"
+                        : "text-neutral-500 hover:bg-white/60"
+                    }`}
+                    title={p.title}
+                  >
+                    <span className="text-[10px] uppercase text-neutral-400">
+                      {kindBadge(p.kind)}
+                    </span>
+                    <span className="truncate">{p.title}</span>
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closePanel(p.key);
+                      }}
+                      className="ml-1 rounded px-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
                     >
-                      <span className="text-[10px] uppercase text-neutral-400">
-                        {kindBadge(p.kind)}
-                      </span>
-                      <span className="truncate">{p.title}</span>
-                      <span
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          closePanel(p.key);
-                        }}
-                        className="ml-1 rounded px-1 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
-                      >
-                        ×
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex-1 overflow-y-auto">
-                  {activePanel && (
-                    <PanelBody
-                      panel={activePanel}
-                      onOpenCitation={openCitation}
-                      onOpenPanel={openPanel}
-                    />
-                  )}
-                </div>
+                      ×
+                    </span>
+                  </button>
+                ))}
               </div>
-            </Panel>
+
+              <div className="flex-1 overflow-y-auto">
+                {activePanel && (
+                  <PanelBody
+                    panel={activePanel}
+                    onOpenCitation={openCitation}
+                    onOpenPagePanel={openPagePanel}
+                  />
+                )}
+              </div>
+            </div>
+          </Panel>
         )}
       </Group>
     </div>
@@ -218,20 +232,19 @@ export function Reader({ paper }: { paper: PaperFull }) {
 function PanelBody({
   panel,
   onOpenCitation,
-  onOpenPanel,
+  onOpenPagePanel,
 }: {
   panel: OpenedPanel;
   onOpenCitation: (ownerPaperId: string, bibKey: string, label: string) => void;
-  onOpenPanel: (req: OpenPanelRequest) => void;
+  onOpenPagePanel: (req: OpenPagePanelRequest) => void;
 }) {
-  // Citation panel
   if (panel.kind === "citation") {
     if (panel.resolving) {
       return <div className="p-6 text-sm text-neutral-500">Resolving citation…</div>;
     }
-    if (panel.citedHtml && panel.citedPaperId) {
+    if (panel.citedPaperId && panel.citedNumPages) {
       return (
-        <div>
+        <div className="flex h-full flex-col">
           {panel.reference?.resolvedUrl && (
             <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-2 text-xs">
               <a
@@ -244,18 +257,18 @@ function PanelBody({
               </a>
             </div>
           )}
-          <div className="mx-auto max-w-2xl px-5 py-6">
-            <PaperHtml
-              html={panel.citedHtml}
+          <div className="min-h-0 flex-1">
+            <PdfViewer
+              fileUrl={`/api/papers/${panel.citedPaperId}/pdf`}
               ownerPaperId={panel.citedPaperId}
+              numPages={panel.citedNumPages}
               onOpenCitation={onOpenCitation}
-              onOpenPanel={onOpenPanel}
+              onOpenPagePanel={onOpenPagePanel}
             />
           </div>
         </div>
       );
     }
-    // Metadata card
     return (
       <div className="p-5 text-sm">
         {panel.reference?.title && (
@@ -287,23 +300,30 @@ function PanelBody({
     );
   }
 
-  // Section / figure / equation / table / footnote panel
-  return (
-    <div className="mx-auto max-w-2xl px-5 py-6">
-      <PaperHtml
-        html={panel.html || ""}
-        ownerPaperId={panel.ownerPaperId}
-        onOpenCitation={onOpenCitation}
-        onOpenPanel={onOpenPanel}
-      />
-    </div>
-  );
+  if (panel.kind === "page" && panel.fileUrl && panel.pageNumber) {
+    return (
+      <div className="h-full">
+        <PdfViewer
+          fileUrl={panel.fileUrl}
+          ownerPaperId={panel.ownerPaperId}
+          numPages={0}
+          singlePage={{ pageNumber: panel.pageNumber, destY: panel.destY }}
+          onOpenCitation={onOpenCitation}
+          onOpenPagePanel={onOpenPagePanel}
+        />
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function kindBadge(kind: string): string {
   switch (kind) {
     case "citation":
       return "cite";
+    case "page":
+      return "ref";
     case "figure":
       return "fig";
     case "equation":

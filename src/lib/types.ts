@@ -16,7 +16,7 @@ export interface PaperFull {
   title: string;
   authors: string | null;
   abstract: string | null;
-  html: string;
+  numPages: number;
   sourceUrl: string;
   references: ReferenceItem[];
 }
@@ -27,6 +27,7 @@ export interface ResolvedReference extends ReferenceItem {
 
 export type PanelKind =
   | "citation"
+  | "page"
   | "section"
   | "figure"
   | "equation"

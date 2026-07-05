@@ -5,16 +5,18 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
+    "@thednp/dommatrix": "^3.0.4",
     "better-sqlite3": "^12.10.0",
     "katex": "^0.17.0",
-    "linkedom": "^0.18.12",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-pdf": "^10.4.1",
     "react-resizable-panels": "^4.11.2"
   },
   "devDependencies": {

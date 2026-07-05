@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { getPaperById, getReferencesForPaper } from "@/lib/db";
+import { getPaperMetaById, getReferencesForPaper } from "@/lib/db";
 import { Reader } from "@/components/Reader";
 import type { PaperFull } from "@/lib/types";
-import "@/styles/paper.css";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +11,7 @@ export default async function ReadPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const paper = getPaperById(id);
+  const paper = getPaperMetaById(id);
 
   if (!paper) notFound();
 
@@ -23,7 +22,7 @@ export default async function ReadPage({
     title: paper.title,
     authors: paper.authors,
     abstract: paper.abstract,
-    html: paper.html,
+    numPages: paper.numPages,
     sourceUrl: paper.sourceUrl,
     references: getReferencesForPaper(id),
   };

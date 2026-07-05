@@ -39,53 +39,43 @@ export function normalizeArxivId(input: string): ArxivRef | null {
   };
 }
 
-export interface FetchedHtml {
-  html: string;
+export interface FetchedPdf {
+  pdf: Buffer;
   sourceUrl: string;
 }
 
-async function tryFetch(url: string): Promise<string | null> {
+async function tryFetchPdf(url: string): Promise<Buffer | null> {
   let res: Response;
   try {
     res = await fetch(url, {
-      headers: { "User-Agent": UA, Accept: "text/html" },
+      headers: { "User-Agent": UA, Accept: "application/pdf" },
       redirect: "follow",
     });
   } catch {
     return null;
   }
   if (!res.ok) return null;
-  const text = await res.text();
-  // arxiv serves a small placeholder when no HTML rendition exists.
-  if (text.length < 2000) return null;
-  if (/No HTML available|HTML is not available/i.test(text.slice(0, 5000))) {
-    return null;
-  }
-  return text;
+  const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length < 5) return null;
+  if (!buf.subarray(0, 5).toString("latin1").startsWith("%PDF")) return null;
+  return buf;
 }
 
-/**
- * Fetch the LaTeXML HTML rendition for a paper, preferring arxiv's native
- * HTML and falling back to ar5iv (which covers the historical corpus).
- */
-export async function fetchPaperHtml(ref: ArxivRef): Promise<FetchedHtml> {
+/** Fetch the arXiv PDF for a paper. */
+export async function fetchPaperPdf(ref: ArxivRef): Promise<FetchedPdf> {
   const withVersion = `${ref.id}${ref.version ?? ""}`;
 
   const candidates: string[] = [
-    `https://arxiv.org/html/${withVersion}`,
-    `https://arxiv.org/html/${ref.id}`,
-    `https://ar5iv.labs.arxiv.org/html/${withVersion}`,
-    `https://ar5iv.labs.arxiv.org/html/${ref.id}`,
+    `https://arxiv.org/pdf/${withVersion}`,
+    `https://arxiv.org/pdf/${ref.id}`,
   ];
 
   for (const url of candidates) {
-    const html = await tryFetch(url);
-    if (html) return { html, sourceUrl: url };
+    const pdf = await tryFetchPdf(url);
+    if (pdf) return { pdf, sourceUrl: url };
   }
 
-  throw new Error(
-    `No HTML rendition found for arxiv:${withVersion}. The paper may be too old or HTML conversion may have failed.`,
-  );
+  throw new Error(`No PDF found for arxiv:${withVersion}.`);
 }
 
 /** Fetch lightweight metadata via the arxiv Atom API (title/authors/abstract). */

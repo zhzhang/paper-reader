@@ -5,16 +5,15 @@ import {
 } from "@/lib/db";
 import {
   fetchArxivMeta,
-  fetchPaperHtml,
+  fetchPaperPdf,
   normalizeArxivId,
   type ArxivRef,
 } from "@/lib/arxiv";
-import { parsePaper } from "@/lib/parse";
+import { extractPdfInfo } from "@/lib/pdf-refs";
 
 /**
  * Ingest a paper by arxiv link/id. Returns the existing record if already
- * stored, otherwise fetches the HTML rendition, parses it, and persists it
- * along with its bibliography references.
+ * stored, otherwise fetches the PDF, extracts references, and persists it.
  */
 export async function ingestPaper(input: string): Promise<PaperRow> {
   const ref = normalizeArxivId(input);
@@ -32,19 +31,19 @@ export async function ingestRef(ref: ArxivRef): Promise<PaperRow> {
   const existing = getPaperByArxivId(ref.id);
   if (existing) return existing;
 
-  const { html, sourceUrl } = await fetchPaperHtml(ref);
-  const parsed = parsePaper(html, sourceUrl);
+  const { pdf, sourceUrl } = await fetchPaperPdf(ref);
+  const { numPages, references } = await extractPdfInfo(pdf);
 
-  // Prefer clean metadata from the arxiv API; fall back to parsed values.
   const meta = await fetchArxivMeta(ref).catch(() => null);
 
-  const title = meta?.title || parsed.title;
+  const title = meta?.title || `arXiv:${ref.id}`;
   const authors =
     meta?.authors && meta.authors.length
       ? meta.authors.join("; ")
-      : parsed.authors.join("; ");
-  const abstract =
-    meta?.abstract || parsed.abstract.replace(/^Abstract\s*/i, "").trim();
+      : null;
+  const abstract = meta?.abstract ?? null;
+
+  console.log(`Ingested ${ref.id}: ${references.length} references from PDF`);
 
   return createPaperWithReferences(
     {
@@ -53,16 +52,11 @@ export async function ingestRef(ref: ArxivRef): Promise<PaperRow> {
       title,
       authors,
       abstract,
-      html: parsed.bodyHtml,
+      pdf,
+      numPages,
       sourceUrl,
     },
-    parsed.references.map((r) => ({
-      bibKey: r.bibKey,
-      rawText: r.rawText,
-      title: r.title ?? null,
-      resolvedArxivId: r.arxivId ?? null,
-      status: r.arxivId ? "resolved" : "pending",
-    })),
+    references,
   );
 }
 

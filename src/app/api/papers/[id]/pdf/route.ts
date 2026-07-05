@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPaperMetaById, getReferencesForPaper } from "@/lib/db";
+import { getPaperById } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -8,13 +8,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const paper = getPaperMetaById(id);
+  const paper = getPaperById(id);
 
   if (!paper) {
     return NextResponse.json({ error: "Paper not found." }, { status: 404 });
   }
 
-  return NextResponse.json({
-    paper: { ...paper, references: getReferencesForPaper(id) },
+  return new NextResponse(new Uint8Array(paper.pdf), {
+    headers: {
+      "Content-Type": "application/pdf",
+      "Cache-Control": "private, max-age=31536000, immutable",
+    },
   });
 }
