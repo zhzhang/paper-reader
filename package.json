@@ -6,18 +6,35 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "bun scripts/copy-pdf-worker.ts",
+    "db:push": "bunx drizzle-kit push"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@floating-ui/react": "^0.27.20",
+    "drizzle-orm": "^0.45.4",
+    "katex": "^0.19.0",
+    "lucide-react": "^1.55.0",
     "next": "16.4.0",
+    "pdfjs-dist": "^6.4.299",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-markdown": "^10.1.0",
+    "react-resizable-panels": "^4.14.3",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
+    "swr": "^2.5.1",
+    "unpdf": "^1.8.1",
+    "zod": "^4.6.5",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",

@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Paper Reader
 
-## Getting Started
+Local app for reading research PDFs with Claude: ask about highlights, hover formulas for definitions, open references without losing your place, and attach notes to spots in the paper.
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
+cp .env.example .env.local   # add ANTHROPIC_API_KEY
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Without an API key you can still ingest PDFs, hover formula hits (fallback glossary), open citations in the drawer, and take notes. Claude-backed glossary/bibliography extraction, Ask, and Explain need `ANTHROPIC_API_KEY`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Usage
 
-## Learn More
+- Upload a PDF, or paste an arXiv id/URL or any PDF URL.
+- Select text → **Ask** (Claude) or **Note**.
+- Hover math spans for glossary definitions; use **Explain** when missing.
+- Click citations or figure/equation links to open a drawer or peek; the main PDF stays put.
+- Glossary, notes, and chat live in the right rail.
 
-To learn more about Next.js, take a look at the following resources:
+## Stack notes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 16 App Router + Bun
+- SQLite via `drizzle-orm` / `bun:sqlite` (`data/app.db`)
+- PDF render: `pdfjs-dist` (canvas + custom text/link overlays)
+- PDF ingest extract: `unpdf`
+- Claude: `@anthropic-ai/sdk` with PDF document blocks + citations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Data is stored in `data/` (SQLite + PDFs). Not committed to git.
